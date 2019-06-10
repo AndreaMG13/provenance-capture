@@ -1,0 +1,92 @@
+version: '2'
+services:  
+  mongo: # base de datos de mongo para conexion con Fiware-orion context broker
+    image: mongo:3.4
+    command: --nojournal
+    networks:
+      idm_network:
+        ipv4_address: 172.18.1.9
+  orion: # instancia de Fiware orion context broker
+    image: fiware/orion
+    links:
+      - mongo
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo
+    networks:
+      idm_network:
+        ipv4_address: 172.18.1.10
+
+  mongo-ds: #instancia de mongo que contiene el dataset de carrefour
+    image: ging/mongo-dataset
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - vol-mongo:/data
+    networks:
+      idm_network:
+        ipv4_address: 172.18.1.12
+
+  dataset: #instancia que ejecuta un script en python para enviar los datos a orion context broker
+    image: ging/dataset
+    restart: always
+    links:
+      - mongo-ds
+    environment:
+      - ORION_ENDPOINT=172.18.1.10:1026
+      - MONGO_URI=mongodb://172.18.1.12:27017/
+      - START_DATE=2016-01-14
+      - END_DATE=2016-01-15
+      - FRECUENCY=5
+    depends_on:
+      - mongo-ds
+      - orion
+    networks:
+      idm_network:
+        ipv4_address: 172.18.1.13
+
+  nifi: #instancia con Apache Nifi
+    image: apache/nifi:1.9.1
+    ports:
+      - 8080:8080
+    networks:
+      idm_network:
+        ipv4_address: 172.18.1.14
+    environment:
+      - NIFI_WEB_HTTP_PORT=8080
+
+  nifi_prov: #instancia con Apache Nifi para datos de provenance
+    image: apache/nifi:1.9.1
+    ports:
+      - 8081:8081
+      - 10000:10000
+    networks:
+      idm_network:
+        ipv4_address: 172.18.1.15
+    environment:
+      - NIFI_WEB_HTTP_PORT=8081
+      - NIFI_REMOTE_INPUT_HOST=172.18.1.15
+      - NIFI_REMOTE_INPUT_SECURE=false
+      - NIFI_REMOTE_INPUT_SOCKET_PORT=10000
+    volumes: #ficheros que añaden procesadores para Neo4j
+      - ./neo4j-bundle-0.2.2/neo4j-bundle-nar-0.2.2.nar:/opt/nifi/nifi-current/lib/neo4j-bundle-nar-0.2.2.nar
+      - ./neo4j-bundle-0.2.2/neo4j-controller-service-api-nar-0.2.2.nar:/opt/nifi/nifi-current/lib/neo4j-controller-service-api-nar-0.2.2.nar
+
+  # neo4j: #instancia como Neo4j
+  #   image: neo4j:3.0
+  #   ports:
+  #     - 7474:7474
+  #   networks:
+  #     idm_network:
+  #       ipv4_address: 172.18.1.16
+
+networks:
+  idm_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.1.0/24
+          gateway: 172.18.1.1
+volumes:
+  vol-mongo:
