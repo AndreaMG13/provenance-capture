@@ -8,3 +8,16 @@ In here, you can find four files:
 - The NiFi template named ProvenanceEventsToNeo4j with the processors that send the information to Neo4j.
 
 The data ingested is defined in the following github: https://github.com/ging/carrefour_basket_data_challenge.
+
+### Docker-compose
+In this file, the necessary containers to receive all the data are described:
+- The dataset is stored in an instance of MongoDB, which is executed with the container ging/mongo-dataset.
+- To capture this data in Apache NiFi it is necessary to send them to Orion Context Broker, which sends notifications with the updates in the dataset of each subscription. To do this, you need three containers: fiware/orion for the Orion Context Broker instance, mongo:3.4 to connect the database with Orion Context Broker and ging/dataset to send the data to Orion Context Broker.
+
+
+
+### Script
+
+### CarrefourDate-Processing
+
+### ProvenanceEventsToNeo4j
